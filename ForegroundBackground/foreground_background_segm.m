@@ -1,17 +1,17 @@
 fileId = fopen('../dataVideo/hall_qcif.yuv', 'r');
 global model;
+
 [mov, imgRgb ] = loadFileYuv('../dataVideo/hall_qcif.yuv' , 176 , 144 , 1:100) ;
-ima=mov(66).cdata;
 k=3;
 frames = 100;
-% visualizeVideo(mov, 1, 100);
+pixels = getPixelsOfInterest(mov(1).cdata, 52, 67, 2);
 pixFrames = framesByPixels(mov, frames);
-segment(mov, pixFrames, k);
+mov = segment(mov, pixFrames, pixels, k);
+visualizeVideo(mov, 1, 100);
 
 function visualizeVideo(mov, startIdx, endIdx)
     for i=startIdx:endIdx
-        frame = patchFrame(mov(i).cdata, 52, 67, 2);
-        image(uint8(frame));
+        image(uint8(mov(i).cdata));
         pause(0.1);
     end
 end
@@ -28,59 +28,76 @@ function [pixFrames] = framesByPixels(mov, frames)
     end   
 end
 
-function segment(mov, pixFrames, k)
-global model;
+function [mov] = segment(mov, pixFrames, pixels, k)
+    global model;
+    threshold = 0.4;
     [rows, colums, colours] = size(mov(1).cdata());
-    for i=52*67:rows*colums
+%     pixels=[52,67];
+    for idx=1:size(pixels, 1)
+        x = pixels(idx,1);
+        y = pixels(idx,2);
+        i=(x-1)*176+y;
         startRow=(i-1)*3+1;
         endRow=(i-1)*3+3; 
+        weights = zeros(1, 3);
+        
         [label, model, llh] = emgm(pixFrames(startRow:endRow,:), k);
+        
+%         First faussian
         sigma1 = model.Sigma(:,:,1);
-        s1 = norm([sigma1(1,1), sigma1(2,2), sigma1(3,3)]);
+        weights(1) = model.weight(1)/norm([sigma1(1,1), sigma1(2,2), sigma1(3,3)]);
+        
+%         Second gaussian
         sigma2 = model.Sigma(:,:,2);
-        s2 = norm([sigma2(1,1), sigma2(2,2), sigma2(3,3)]);
+        weights(2) = model.weight(2)/norm([sigma2(1,1), sigma2(2,2), sigma2(3,3)]);
+        
+%         Third gaussian
         if size(model.Sigma, 3) > 2
             sigma3 = model.Sigma(:,:,3);
-            s3 = norm([sigma3(1,1), sigma3(2,2), sigma3(3,3)]);
-        else
-            s3 = 999999999999999999;
+            weights(3) = model.weight(3)/norm([sigma3(1,1), sigma3(2,2), sigma3(3,3)]);
         end
         
-        t1 = -1; t2 = -1; t3 = -1; t4 = -1; t5 = -1; t6 = -1; t7 = -1;
-        if s1 < s2 && s1 < s3
-            t1 = s1;
-            if s2<s3
-                t2 = s1+s2;
+        weights_sorted = sort(weights,'descend');
+        
+        background = zeros(3,1);
+        sum = model.weight(find(weights==weights_sorted(1)));
+        if sum > threshold
+            background(1) = find(weights==weights_sorted(1));
+        else
+            sum = sum + model.weight(find(weights==weights_sorted(2)));
+            if sum > threshold
+                background(2) = find(weights==weights_sorted(2));
             else
-                t3 = s1 + s3;
-            end  
-         elseif s2 < s1 && s2 < s3
-            if s1 < s3
-                t4 = s2+s1;
-            else
-                t5 = s1 + s3;
+                sum = sum + model.weight(find(weights==weights_sorted(3)));
+                if sum > threshold
+                    background(3) = find(weights==weights_sorted(3));
+                end
             end
-        elseif s3 < s1 && s3 < s2
-            if s1 < s2
-                t6 = s3 + s1
+        end
+    
+        for t=1:100
+            if size(find(background==label(t)),1)==0
+%                 Foreground White
+                mov(t).cdata(x,y,:) = [255 255 255];
             else
-                t7 = s1 + s3;
+%                 Backgroud Black
+                mov(t).cdata(x,y,:) = [0 0 0];
             end
-        end    
-    end
+        end
+    end    
 end
 
-function [frame] = patchFrame(frame, x, y, sz)
+function [pixels] = getPixelsOfInterest(frame, x, y, sz)
     [rows, columns, c] = size(frame);
+    pixels =[];
     if x-sz > 0 && x+sz <= rows && y-sz > 0 && y+sz <= columns
-        for i=0:sz
-            for j=0:sz
-                frame(x+i,y+j, :) = [0 0 0];
-                frame(x+i,y-j, :) = [0 0 0];
-                frame(x-i,y+j, :) = [0 0 0];
-                frame(x-i,y-j, :) = [0 0 0];
+        for i=x-sz:x+sz
+            for j=y-sz:y+sz
+               frame(i,j, :) = [0 0 0];
+               pixels = cat(1,pixels,[i,j]);
             end   
         end
         
     end
 end
+
