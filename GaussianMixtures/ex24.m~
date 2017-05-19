@@ -1,6 +1,0 @@
-function [] = ex4()
-    centroids = zeros(2,3);
-    centroids(:,1) = [0 2];
-    centroids(:,1) = [2 2];
-    centroids(:,1) = [2 ];
-end
