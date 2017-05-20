@@ -6,7 +6,7 @@ function [] = ex23()
     
     [dim Kcentroids] = size(centroids);
     sigma =1 ;
-    n = 100;
+    n = 1400;
     gm = sample_gm(n, sigma, centroids);
     gm2 = sample_gm2(n * Kcentroids, sigma, centroids);
     figure; plot(gm(1,:), gm(2,:), 'bo');%,gm2(1,:), gm2(2,:), 'rx');
