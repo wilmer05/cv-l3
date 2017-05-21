@@ -2,9 +2,13 @@ fileId = fopen('../dataVideo/hall_qcif.yuv', 'r');
 global model;
 
 [mov, imgRgb ] = loadFileYuv('../dataVideo/hall_qcif.yuv' , 176 , 144 , 1:100) ;
+% [mov, imgRgb ] = loadFileYuv('../dataVideo/foreman_qcif.yuv' , 176 , 144 , 1:100) ;
+
 k=3;
 frames = 100;
 pixels = getPixelsOfInterest(mov(1).cdata, 52, 67, 2);
+% pixels = getPixelsOfInterest(mov(1).cdata, 100,120, 2);
+
 pixFrames = framesByPixels(mov, frames);
 mov = segment(mov, pixFrames, pixels, k);
 visualizeVideo(mov, 1, 100);
@@ -12,7 +16,7 @@ visualizeVideo(mov, 1, 100);
 function visualizeVideo(mov, startIdx, endIdx)
     for i=startIdx:endIdx
         image(uint8(mov(i).cdata));
-        pause(0.1);
+        pause(0.3);
     end
 end
 
@@ -30,7 +34,7 @@ end
 
 function [mov] = segment(mov, pixFrames, pixels, k)
     global model;
-    threshold = 0.4;
+    threshold = 0.80;
     [rows, colums, colours] = size(mov(1).cdata());
 %     pixels=[52,67];
     for idx=1:size(pixels, 1)
@@ -43,36 +47,38 @@ function [mov] = segment(mov, pixFrames, pixels, k)
         
         [label, model, llh] = emgm(pixFrames(startRow:endRow,:), k);
         
+      
 %         First faussian
-        sigma1 = model.Sigma(:,:,1);
-        weights(1) = model.weight(1)/norm([sigma1(1,1), sigma1(2,2), sigma1(3,3)]);
+        sigma1Matrix = model.Sigma(:,:,1);
+        sigma1 = (sigma1Matrix(1,1) + sigma1Matrix(2,2) + sigma1Matrix(3,3))/3;
+%         norm([sigma1(1,1), sigma1(2,2), sigma1(3,3)]
+        weights(1) = model.weight(1)/sigma1;
         
 %         Second gaussian
-        sigma2 = model.Sigma(:,:,2);
-        weights(2) = model.weight(2)/norm([sigma2(1,1), sigma2(2,2), sigma2(3,3)]);
+        sigma2Matrix = model.Sigma(:,:,2);
+        sigma2 = (sigma2Matrix(1,1) + sigma2Matrix(2,2) + sigma2Matrix(3,3))/2;
+%         norm([sigma2(1,1), sigma2(2,2), sigma2(3,3)])
+        weights(2) = model.weight(2)/sigma2;
         
 %         Third gaussian
         if size(model.Sigma, 3) > 2
-            sigma3 = model.Sigma(:,:,3);
-            weights(3) = model.weight(3)/norm([sigma3(1,1), sigma3(2,2), sigma3(3,3)]);
+            sigma3Matrix = model.Sigma(:,:,3);
+            simga3 = sigma3Matrix(1,1) + sigma3Matrix(2,2) + sigma3Matrix(3,3);
+%             norm([sigma3(1,1), sigma3(2,2), sigma3(3,3)])
+            weights(3) = model.weight(3)/simga3;
         end
         
         weights_sorted = sort(weights,'descend');
         
         background = zeros(3,1);
         sum = model.weight(find(weights==weights_sorted(1)));
-        if sum > threshold
-            background(1) = find(weights==weights_sorted(1));
-        else
+        background(1) = find(weights==weights_sorted(1));
+        if sum < threshold
             sum = sum + model.weight(find(weights==weights_sorted(2)));
-            if sum > threshold
-                background(2) = find(weights==weights_sorted(2));
-            else
-                sum = sum + model.weight(find(weights==weights_sorted(3)));
-                if sum > threshold
-                    background(3) = find(weights==weights_sorted(3));
-                end
-            end
+            background(2) = find(weights==weights_sorted(2));
+        elseif sum < threshold
+%             sum = sum + model.weight(find(weights==weights_sorted(3)));
+            background(3) = find(weights==weights_sorted(3));
         end
     
         for t=1:100
