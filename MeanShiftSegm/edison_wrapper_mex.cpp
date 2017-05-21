@@ -101,7 +101,7 @@ void mexFunction(
         mexErrMsgIdAndTxt("edison_wraper:edison","Mean shift define latice input: %s", ms.ErrorMessage);
     
     kernelType k[2] = {DefualtKernelType, DefualtKernelType};
-    int P[2] = {DefualtSpatialDimensionality, N};
+    int P[2] = {DefualtSpatialDimensionality, (int)N};
     float tempH[2] = {1.0, 1.0};
     ms.DefineKernel(k, tempH, P, 2); 
     if (ms.ErrorStatus)
@@ -116,7 +116,7 @@ void mexFunction(
     
     if (syn) {
         /* perform synergistic segmentation */
-        int maps_dim[2] = {w*h, 1};
+        int maps_dim[2] = {(int)w*(int)h, 1};
         /* allcate memory for confidence and gradient maps */
         mxconf = mxCreateNumericArray(2, maps_dim, mxSINGLE_CLASS, mxREAL);
         conf = (float*)mxGetData(mxconf);
