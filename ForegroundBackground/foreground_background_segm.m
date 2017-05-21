@@ -16,7 +16,7 @@ visualizeVideo(mov, 1, 100);
 function visualizeVideo(mov, startIdx, endIdx)
     for i=startIdx:endIdx
         image(uint8(mov(i).cdata));
-        pause(0.3);
+        pause(0.1);
     end
 end
 
@@ -51,20 +51,17 @@ function [mov] = segment(mov, pixFrames, pixels, k)
 %         First faussian
         sigma1Matrix = model.Sigma(:,:,1);
         sigma1 = (sigma1Matrix(1,1) + sigma1Matrix(2,2) + sigma1Matrix(3,3))/3;
-%         norm([sigma1(1,1), sigma1(2,2), sigma1(3,3)]
         weights(1) = model.weight(1)/sigma1;
         
 %         Second gaussian
         sigma2Matrix = model.Sigma(:,:,2);
         sigma2 = (sigma2Matrix(1,1) + sigma2Matrix(2,2) + sigma2Matrix(3,3))/2;
-%         norm([sigma2(1,1), sigma2(2,2), sigma2(3,3)])
         weights(2) = model.weight(2)/sigma2;
         
 %         Third gaussian
         if size(model.Sigma, 3) > 2
             sigma3Matrix = model.Sigma(:,:,3);
             simga3 = sigma3Matrix(1,1) + sigma3Matrix(2,2) + sigma3Matrix(3,3);
-%             norm([sigma3(1,1), sigma3(2,2), sigma3(3,3)])
             weights(3) = model.weight(3)/simga3;
         end
         
@@ -77,7 +74,6 @@ function [mov] = segment(mov, pixFrames, pixels, k)
             sum = sum + model.weight(find(weights==weights_sorted(2)));
             background(2) = find(weights==weights_sorted(2));
         elseif sum < threshold
-%             sum = sum + model.weight(find(weights==weights_sorted(3)));
             background(3) = find(weights==weights_sorted(3));
         end
     
